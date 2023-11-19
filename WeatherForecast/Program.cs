@@ -1,43 +1,10 @@
 using System.Diagnostics.Metrics;
 using System.Diagnostics;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
-using OpenTelemetry;
-using OpenTelemetry.Logs;
-
-// This is required if the collector doesn't expose an https endpoint. By default, .NET
-// only allows http2 (required for gRPC) to secure endpoints.
-AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+using WeatherForecast;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure metrics
-builder.Services.AddOpenTelemetryMetrics(builder =>
-{
-    builder.AddHttpClientInstrumentation();
-    builder.AddAspNetCoreInstrumentation();
-    builder.AddMeter("MyApplicationMetrics");
-    builder.AddOtlpExporter(options => options.Endpoint = new Uri("http://localhost:4317"));
-});
-
-
-// Configure tracing
-builder.Services.AddOpenTelemetryTracing(builder =>
-{
-    builder.AddHttpClientInstrumentation();
-    builder.AddAspNetCoreInstrumentation();
-    builder.AddSource("MyApplicationActivitySource");
-    builder.AddOtlpExporter(options => options.Endpoint = new Uri("http://localhost:4317"));
-});
-
-// Configure logging
-builder.Logging.AddOpenTelemetry(builder =>
-{
-    builder.IncludeFormattedMessage = true;
-    builder.IncludeScopes = true;
-    builder.ParseStateValues = true;
-    builder.AddOtlpExporter(options => options.Endpoint = new Uri("http://localhost:4317"));
-});
+builder.ConfigureOpenTelemetry();
 
 // Add services to the container.
 
