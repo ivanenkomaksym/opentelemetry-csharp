@@ -1,5 +1,6 @@
 ﻿using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace WeatherForecast
@@ -8,15 +9,26 @@ namespace WeatherForecast
     {
         public static void ConfigureOpenTelemetry(this WebApplicationBuilder appBuilder)
         {
+            // Build a resource configuration action to set service information.
+            Action<ResourceBuilder> configureResource = r => r.AddService(
+                serviceName: appBuilder.Configuration.GetValue("ServiceName", defaultValue: "otel-test")!,
+                serviceVersion: typeof(OpenTelemetryExtensions).Assembly.GetName().Version?.ToString() ?? "unknown",
+                serviceInstanceId: Environment.MachineName);
+
+            // Create a service to expose ActivitySource, and Metric Instruments
+            // for manual instrumentation
+            appBuilder.Services.AddSingleton<Instrumentation>();
+
             // Configure OpenTelemetry tracing & metrics with auto-start using the
             // AddOpenTelemetry extension from OpenTelemetry.Extensions.Hosting.
             appBuilder.Services.AddOpenTelemetry()
                 .WithTracing(builder =>
                 {
-                    builder.AddSource("MyApplicationActivitySource");
-                    builder.AddHttpClientInstrumentation();
-                    builder.AddAspNetCoreInstrumentation();
-                    builder.AddOtlpExporter(otlpOptions =>
+                    builder.AddSource(Instrumentation.ActivitySourceName)
+                        .SetSampler(new AlwaysOnSampler())
+                        .AddHttpClientInstrumentation()
+                        .AddAspNetCoreInstrumentation()
+                        .AddOtlpExporter(otlpOptions =>
                             {
                                 // Use IConfiguration directly for Otlp exporter endpoint option.
                                 otlpOptions.Endpoint = new Uri(appBuilder.Configuration.GetValue("Otlp:Endpoint", defaultValue: "http://localhost:4317")!);
@@ -24,14 +36,16 @@ namespace WeatherForecast
                 })
                 .WithMetrics(builder =>
                 {
-                    builder.AddMeter("MyApplicationMetrics");
-                    builder.AddHttpClientInstrumentation();
-                    builder.AddAspNetCoreInstrumentation();
-                    builder.AddOtlpExporter(otlpOptions =>
+                    builder.AddMeter(Instrumentation.MeterName)
+                        .AddHttpClientInstrumentation()
+                        .AddAspNetCoreInstrumentation()
+                        .AddOtlpExporter(otlpOptions =>
                     {
                         // Use IConfiguration directly for Otlp exporter endpoint option.
                         otlpOptions.Endpoint = new Uri(appBuilder.Configuration.GetValue("Otlp:Endpoint", defaultValue: "http://localhost:4317")!);
                     });
+
+                    builder.AddPrometheusExporter();
                 });
 
             // Clear default logging providers used by WebApplication host.

@@ -67,4 +67,8 @@ app.MapGet("/", async (ILogger<Program> logger, string name) =>
 
     return Results.Ok($"Hello {name}");
 });
+
+// Configure OpenTelemetry Prometheus AspNetCore middleware scrape endpoint if enabled.
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
+
 app.Run();
