@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: zipkin
+  ports:
+    - name: connect
+      port: 9411
+      targetPort: 9411
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipkin
+spec:
+  selector:
+    matchLabels:
+      app: zipkin
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: zipkin
+    spec:
+      containers:
+        - name: zipkin
+          image: openzipkin/zipkin:latest
+          ports:
+            - containerPort: 9411
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: prometheus
+  ports:
+    - name: access
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: 'otel-collector'
+        scrape_interval: 10s
+        static_configs:
+        # >kubectl get svc
+        # NAME                            TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                                        AGE
+        # ...
+        # simplest-collector              LoadBalancer   10.101.8.178     127.0.0.1     4317:30088/TCP,4318:31945/TCP,8889:30657/TCP   40h
+        # simplest-collector-monitoring   ClusterIP      10.100.191.148   <none>        8888/TCP                                       40h
+        # zipkin-service                  LoadBalancer   10.102.151.116   127.0.0.1     9411:31858/TCP                                 40h
+        - targets: ['simplest-collector:8889']
+        - targets: ['simplest-collector-monitoring:8888']
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          ports:
+            - containerPort: 9090
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--web.console.libraries=/etc/prometheus/console_libraries"
+            - "--web.console.templates=/etc/prometheus/consoles"
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+              readOnly: true
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+            items:
+              - key: prometheus.yml
+                path: prometheus.yml
