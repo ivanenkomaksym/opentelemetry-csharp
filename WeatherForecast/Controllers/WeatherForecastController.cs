@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics.Metrics;
+using System.Diagnostics;
 
 namespace WeatherForecast.Controllers
 {
@@ -6,28 +8,64 @@ namespace WeatherForecast.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
+        private static readonly HttpClient HttpClient = new();
+
         private static readonly string[] Summaries = new[]
         {
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
     };
 
-        private readonly ILogger<WeatherForecastController> _logger;
+        private readonly ILogger<WeatherForecastController> logger;
+        private readonly ActivitySource activitySource;
+        private readonly Counter<long> freezingDaysCounter;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger, Instrumentation instrumentation)
         {
-            _logger = logger;
+            this.logger = logger;
+
+            ArgumentNullException.ThrowIfNull(instrumentation);
+            this.activitySource = instrumentation.ActivitySource;
+            this.freezingDaysCounter = instrumentation.FreezingDaysCounter;
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
         public IEnumerable<WeatherForecast> Get()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            using var scope = this.logger.BeginScope("{Id}", Guid.NewGuid().ToString("N"));
+
+            // Making an http call here to serve as an example of
+            // how dependency calls will be captured and treated
+            // automatically as child of incoming request.
+            var res = HttpClient.GetStringAsync("http://google.com").Result;
+
+            // Optional: Manually create an activity. This will become a child of
+            // the activity created from the instrumentation library for AspNetCore.
+            // Manually created activities are useful when there is a desire to track
+            // a specific subset of the request. In this example one could imagine
+            // that calculating the forecast is an expensive operation and therefore
+            // something to be distinguished from the overall request.
+            // Note: Tags can be added to the current activity without the need for
+            // a manual activity using Acitivty.Current?.SetTag()
+            using var activity = this.activitySource.StartActivity("calculate forecast");
+
+            var rng = new Random();
+            var forecast = Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateTime.Now.AddDays(index),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
+                TemperatureC = rng.Next(-20, 55),
+                Summary = Summaries[rng.Next(Summaries.Length)],
             })
             .ToArray();
+
+            // Optional: Count the freezing days
+            this.freezingDaysCounter.Add(forecast.Count(f => f.TemperatureC < 0));
+
+            this.logger.LogInformation(
+                "WeatherForecasts generated {count}: {forecasts}",
+                forecast.Length,
+                forecast);
+
+            return forecast;
         }
     }
 }

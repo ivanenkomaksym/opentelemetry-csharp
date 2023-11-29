@@ -22,6 +22,7 @@ namespace WeatherForecast
             // Configure OpenTelemetry tracing & metrics with auto-start using the
             // AddOpenTelemetry extension from OpenTelemetry.Extensions.Hosting.
             appBuilder.Services.AddOpenTelemetry()
+                .ConfigureResource(configureResource)
                 .WithTracing(builder =>
                 {
                     builder.AddSource(Instrumentation.ActivitySourceName)
@@ -54,6 +55,10 @@ namespace WeatherForecast
             // Configure OpenTelemetry Logging.
             appBuilder.Logging.AddOpenTelemetry(options =>
             {
+                var resourceBuilder = ResourceBuilder.CreateDefault();
+                configureResource(resourceBuilder);
+                options.SetResourceBuilder(resourceBuilder);
+
                 options.IncludeFormattedMessage = true;
                 options.IncludeScopes = true;
                 options.ParseStateValues = true;
