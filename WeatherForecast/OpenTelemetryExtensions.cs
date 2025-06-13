@@ -27,8 +27,6 @@ namespace WeatherForecast
                 {
                     builder.AddSource(Instrumentation.ActivitySourceName)
                         .SetSampler(new AlwaysOnSampler())
-                        .AddHttpClientInstrumentation()
-                        .AddAspNetCoreInstrumentation()
                         .AddOtlpExporter(otlpOptions =>
                             {
                                 // Use IConfiguration directly for Otlp exporter endpoint option.
@@ -38,8 +36,6 @@ namespace WeatherForecast
                 .WithMetrics(builder =>
                 {
                     builder.AddMeter(Instrumentation.MeterName)
-                        .AddHttpClientInstrumentation()
-                        .AddAspNetCoreInstrumentation()
                         .AddOtlpExporter(otlpOptions =>
                     {
                         // Use IConfiguration directly for Otlp exporter endpoint option.
