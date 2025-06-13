@@ -4,6 +4,18 @@
 [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/)
 [.NET 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 
+## Run locally
+
+1. Execute `run_local_otelcol-contrib.ps1` with PowerShell
+2. Execute `dotnet run` inside `WeatherForecast` directory
+3. Open WetherForecast Swagger and execute requests
+
+```
+https://localhost:7175/swagger/index.html
+```
+
+4. Observe logs in `otelcol-contrib_0.128.0_windows_amd64\otel.json`
+
 ## Docker Usage
 
 1. Start OpenTelemetry docker
