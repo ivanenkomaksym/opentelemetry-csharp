@@ -6,9 +6,10 @@
 
 ## Run locally
 
-1. Execute `run_local_otelcol-contrib.ps1` with PowerShell
-2. Execute `dotnet run` inside `WeatherForecast` directory
-3. Open WetherForecast Swagger and execute requests
+1. Download, unzip and copy-paste `otelcol-contrib.exe` from https://github.com/open-telemetry/opentelemetry-collector-contrib/releases/tag/v0.128.0 into `otelcol-contrib`
+2. Execute `run_local_otelcol-contrib.ps1` with PowerShell
+3. Execute `dotnet run` inside `WeatherForecast` directory
+4. Open WetherForecast Swagger and execute requests
 
 ```
 https://localhost:7175/swagger/index.html
